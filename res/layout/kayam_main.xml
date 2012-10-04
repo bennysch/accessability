@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical" >
+
+    <TextView
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="@string/hello"
+        android:textSize="50sp" />
+
+    <TableLayout
+        android:id="@+id/linearLayout1"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:layout_marginTop="50sp"
+        android:padding="10sp"
+        >
+
+        <TableRow
+            android:gravity="center" 
+            >
+
+            <ImageButton
+                android:id="@+id/kayam_claly"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginRight="10sp"
+                android:layout_marginTop="20sp"
+                android:src="@drawable/old_building_main" />
+
+            <ImageButton
+                android:id="@+id/instructions"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10sp"
+                android:layout_marginTop="20sp"
+                android:src="@drawable/instructions" />
+        </TableRow>
+
+        <TableRow
+            android:gravity="center" 
+            >
+
+            <ImageButton
+                android:id="@+id/locker"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginRight="10sp"
+                android:layout_marginTop="20sp"
+                android:src="@drawable/locker" />
+
+            <ImageButton
+                android:id="@+id/shower"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10sp"
+                android:layout_marginTop="20sp"
+                android:src="@drawable/shower" />
+        </TableRow>
+
+        <TableRow
+            android:gravity="center" 
+            >
+
+            <ImageButton
+                android:id="@+id/parking"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginRight="10sp"
+                android:layout_marginTop="20sp"
+                android:src="@drawable/parking" />
+
+            <ImageButton
+                android:id="@+id/groups"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10sp"
+                android:layout_marginTop="20sp"
+                android:src="@drawable/groups" />
+        </TableRow>
+    </TableLayout>
+
+</LinearLayout>
