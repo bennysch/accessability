@@ -1,5 +1,8 @@
 package com.btp.accessability;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -17,10 +20,10 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
-import android.view.ViewGroup.LayoutParams;
 import android.widget.AbsListView;
 import android.widget.ArrayAdapter;
 import android.widget.BaseExpandableListAdapter;
+import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -34,13 +37,13 @@ import com.btp.accessability.form.TakinAdapter;
 
 public class ListItemAdapter extends BaseExpandableListAdapter implements DBConstants{
 
-	List mGroups;
+	List<SectionData> mGroups;
 	Item [][] mItems;
 	//	Fix[][][] fix1s;
 	//	Fix[][][] fix2s;
 	String[][][] mFix1s;
 	String[][][] mFix2s;
-	View[][] mItemLoaded; 
+	View[][] mItemLoaded; // to be removed after persistance is in place; 
 	TakinItem[] mTakinArray;
 	Context ctxt =  null;
 	ItemList parent = null;
@@ -83,8 +86,8 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 		fillFixs();
 		fillTakinArray();
 
-		mItemLoaded = new View[mGroups.length][];
-		for(i = 0; i < mGroups.length; i++){
+		mItemLoaded = new View[mGroups.size()][];
+		for(i = 0; i < mGroups.size(); i++){
 			mItemLoaded[i] = new View[mItems[i].length];
 			for (j = 0; j < mItems[i].length; j++){
 				mItemLoaded[i][j] = null;
@@ -105,9 +108,9 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 		int count;
 		//Cursor c = mDb.query(FORM_SECTION_TABLE, null, SHEET_ID+" = '?'", args, null, null, null);
 		Cursor c = mDb.query(FORM_SECTION_TABLE, null, SHEET_ID+" = '"+mSheetId+"'", null, null, null, null);
-		Cursor cc = mDb.query(FORM_SECTION_TABLE, null, null, null, null, null, null);
+		//Cursor cc = mDb.query(FORM_SECTION_TABLE, null, null, null, null, null, null);
 		count = c.getCount();
-		mGroups = new SectionData[count];
+		mGroups = new ArrayList<SectionData>();
 
 		i = 0;
 		if(c.moveToFirst()){
@@ -115,7 +118,11 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 				group = new SectionData();
 				group.sectionId = c.getString(c.getColumnIndex(SECTION_ID));
 				group.sectionTitle = c.getString(c.getColumnIndex(SECTION_TITLE));
-				mGroups[i++] = group;
+				group.sheetId = mSheetId;
+				group.duplicateId = "0";
+				//group.canDuplicate = ! c.getString(c.getColumnIndex(CAN_DUPLICATE)).equals(""); // true if not empty
+				group.canDuplicate =  (c.getInt(c.getColumnIndex(CAN_DUPLICATE)) == 1);
+				mGroups.add(group);
 			} while(c.moveToNext());
 		}
 	}
@@ -129,9 +136,9 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 		Item item;
 		String[] args = new String[1];
 		String query = null;
-		mItems = new Item[mGroups.length][];
+		mItems = new Item[mGroups.size()][];
 
-		for(i = 0; i < mGroups.length; i++){
+		for(i = 0; i < mGroups.size(); i++){
 
 			//			/*debug*/		Cursor cc = mDb.query(FORM_ITEM_TABLE, null, null, null, null, null, null);
 			//			/*debug*/		Log.i(FORM_ITEM_TABLE , "count = "+cc.getCount());
@@ -141,8 +148,8 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 			//				/*debug*/			Log.i(FORM_ITEM_TABLE, cc.getString(0) +" <> "+ cc.getString(1)+" <> "+ cc.getString(2)+" <> "+ cc.getString(3)+" <> "+ cc.getString(4)+" <> "+ cc.getString(5)+" <> "+ cc.getString(6));
 			//			/*debug*/		} while(cc.moveToNext());
 
-			args[0] = mGroups[i].sectionId;
-			query = new String( SECTION_ID+" = '"+ mGroups[i].sectionId+"'");
+			args[0] = mGroups.get(i).sectionId;
+			query = new String( SECTION_ID+" = '"+ mGroups.get(i).sectionId+"'");
 			c = mDb.query(FORM_ITEM_TABLE, null, query, null, null, null, null);
 			count = c.getCount();
 			if (count > 0) {
@@ -174,9 +181,9 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 		String qFix1 = " and "+FIX_LEVEL+" = '"+FORM_FIX_1+"'";
 		String qFix2 = " and "+FIX_LEVEL+" = '"+FORM_FIX_2+"'";		
 
-		mFix1s = new String[mGroups.length][][];
-		mFix2s = new String[mGroups.length][][];
-		for(i = 0;i < mGroups.length; i++){
+		mFix1s = new String[mGroups.size()][][];
+		mFix2s = new String[mGroups.size()][][];
+		for(i = 0;i < mGroups.size(); i++){
 			mFix1s[i] = new String[mItems[i].length][];
 			mFix2s[i] = new String[mItems[i].length][];
 			for (j = 0; j < mItems[i].length; j++){
@@ -223,7 +230,7 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 	//      implement abstract class methods
 	/////////////////////////////////////////////////////
 
-	// Children
+	//////////////////  Children  //////////////////
 	public Object getChild(int gid, int iid) {
 		return mItems[gid][iid];
 	}
@@ -255,7 +262,7 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 			TakinAdapter<TakinItem> takinAdapter = new TakinAdapter<TakinItem>(ctxt, R.layout.takin_selection, R.id.takin_text, mTakinArray);
 			Spinner takin = ((Spinner)child.findViewById(R.id.takin));
 			takin.setAdapter(takinAdapter);
-			
+
 
 
 			//Add content to the more info [?] button
@@ -293,16 +300,22 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 	}
 
 	public int getChildrenCount(int gid) {
-		return mItems[gid].length;
+		
+		return mItems[Integer.valueOf(mGroups.get(gid).sectionId)].length; 
+		//return mItems[gid].length;
 	}
 
-	// Groups
+	//////////////////  Groups   //////////////////
 	public Object getGroup(int inx) {
-		return mGroups[inx];
+		return mGroups.get(inx);
+	}
+
+	public void addGroup(int inx, SectionData group){
+		mGroups.add(inx, group);
 	}
 
 	public int getGroupCount() {
-		return mGroups.length;
+		return mGroups.size();
 	}
 
 	public long getGroupId(int gid) {
@@ -311,22 +324,25 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 	}
 
 	public View getGroupView(int gid, boolean isExpanded, View convertView, ViewGroup parent) {
-		TextView textView = getGenericView();
 
-		textView.setText(getGroup(gid).toString());
-		return textView;
+			TextView textView = getGenericView();
+
+			textView.setText(getGroup(gid).toString());
+			return textView;
 
 	}
 
+	// a normal expanded list title
 	public TextView getGenericView() {
 
 		Resources res = ctxt.getResources();
 		Drawable bg = res.getDrawable(R.layout.gradient_titlegroup);
 		AbsListView.LayoutParams lp = new AbsListView.LayoutParams(
-				ViewGroup.LayoutParams.FILL_PARENT, 40);
+				ViewGroup.LayoutParams.MATCH_PARENT, 50);
 		TextView textView = new TextView(ctxt);
 		textView.setLayoutParams(lp);
-		textView.setGravity(Gravity.CENTER_VERTICAL | Gravity.LEFT);
+		textView.setGravity(Gravity.CENTER_VERTICAL | Gravity.RIGHT);
+
 		textView.setBackgroundDrawable(bg);
 		//textView.setBackgroundColor(Color.rgb(221, 221, 221));
 		textView.setTextSize(TypedValue.COMPLEX_UNIT_SP ,22.0f);
@@ -337,6 +353,37 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 
 		textView.setPadding(40, 0, 0, 0);
 		return textView;
+
+	}
+
+	// a title for an expanded list group that can be duplicated.
+	public View getDuplicateView(String title) {
+
+		Resources res = ctxt.getResources();
+		Drawable bg = res.getDrawable(R.layout.gradient_titlegroup);
+		AbsListView.LayoutParams lp = new AbsListView.LayoutParams(
+				ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+		LayoutInflater inflater = LayoutInflater.from(ctxt);
+		View dupView = (View)inflater.inflate(R.layout.section_with_duplicate, null);
+
+		dupView.setLayoutParams(lp);
+		dupView.setBackgroundDrawable(bg);
+		TextView tv = (TextView)(dupView.findViewById(R.id.section_title));
+		tv.setText(title);
+		tv.setTextSize(TypedValue.COMPLEX_UNIT_SP ,22.0f);
+		tv.setTypeface(Typeface.DEFAULT_BOLD);//,
+		tv.setTextColor(Color.BLACK);
+		dupView.setPadding(40, 0, 0, 0);
+		
+		Button dup = (Button)dupView.findViewById(R.id.section_duplicate);
+		dup.setOnClickListener(new OnClickListener() {
+			
+			public void onClick(View v) {
+				// TODO Auto-generated method stub
+				
+			}
+		});
+		return dupView;
 
 	}
 

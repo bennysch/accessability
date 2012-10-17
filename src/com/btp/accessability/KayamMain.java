@@ -73,8 +73,6 @@ public class KayamMain extends Activity implements DBConstants{
 			public void onClick(View v) {
 	        	data = getSheetId("כללי");
 	        	intent = new Intent(ctxt,  ItemList.class);
-//	        	intent.putExtra("com.btp.accessability.sheetTitle", title.toCharArray());
-//	        	intent.putExtra("com.btp.accessability.sheetId", sheetId.toCharArray());
 	        	intent.putExtra("com.btp.accessability.sheetTitle", data.sheetTitle.toCharArray());
 	        	intent.putExtra("com.btp.accessability.sheetId", data.sheetId.toCharArray());
 				startActivity(intent);

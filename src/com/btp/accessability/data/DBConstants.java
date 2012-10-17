@@ -18,7 +18,9 @@ public interface DBConstants {
 	//section record - table name and field names
 	public static final String FORM_SECTION_TABLE = "form_section";
 	public static final String SECTION_ID = "sec_id";
+	public static final String DUPLICATE_ID = "duplicate_id";
 	public static final String SECTION_TITLE = "sec_title";
+	public static final String CAN_DUPLICATE = "can_duplicate";
 	
 	//item record - table name and field  names
 	public static final String FORM_ITEM_TABLE = "form_item";
@@ -76,7 +78,9 @@ public interface DBConstants {
 	public static final String CREATE_SECTIONS = "CREATE TABLE "+FORM_SECTION_TABLE+
 															   "('"+SECTION_ID+"' VARCHAR, '"+
 															   SHEET_ID+"' VARCHAR, '"+
-															   SECTION_TITLE+"' VARCHAR, "+
+															   SECTION_TITLE+"' VARCHAR, '"+
+															   DUPLICATE_ID+"' VARCHAR, '"+
+															   CAN_DUPLICATE+"' VARCHAR, "+
 															   "PRIMARY KEY ('"+SHEET_ID+"','"+SECTION_ID+"'));";
  
 	public static final String CREATE_ITEMS = "CREATE TABLE "+FORM_ITEM_TABLE+
@@ -85,6 +89,8 @@ public interface DBConstants {
 															SHEET_ID+"' VARCHAR, '"+
 															SHORT_TEXT+"' VARCHAR, '"+
 															LONG_TEXT+"' VARCHAR, '"+
+															DUPLICATE_ID+"' VARCHAR, '"+
+															CAN_DUPLICATE+"' INTEGER, '"+
 															DO_MEASURE+"' INTEGER, '"+
 															DO_PHOTO+"' INTEGER, "+
 															"PRIMARY KEY ('"+SHEET_ID+"','"+SECTION_ID+"','"+ITEM_ID+"'));";
@@ -107,21 +113,21 @@ public interface DBConstants {
 														   FIX_2_SELECTION+"' VARCHAR, '"+
 														   COMMENT+"' VARCHAR, '"+
 														   MEASURE_RESULT+"' VARCHAR, '"+
-														   IMAGE_LOCATION+"' VARCHAR, '"+
+														   IMAGE_LOCATION+"' VARCHAR, "+
 														   "PRIMARY KEY ('"+SURVEY_ID+"','"+SHEET_ID+"','"+SECTION_ID+"','"+ITEM_ID+"'));";
  
 	public static final String CREATE_OWNER = "CREATE TABLE IF NOT EXISTS " +OWNER_TABLE +
-															"('"+OWNER_ID+"' VARCHAR '"+
-															OWNER_NAME+"' VARCHAR '"+
-															OWNER_ADDRESS+"' VARCHAR '"+
-															OWNER_PHONE+"' VARCHAR '"+
-															" PRIMARY KEY '"+OWNER_ID+"'));";
+															"('"+OWNER_ID+"' VARCHAR, '"+
+															OWNER_NAME+"' VARCHAR, '"+
+															OWNER_ADDRESS+"' VARCHAR, '"+
+															OWNER_PHONE+"' VARCHAR, "+
+															" PRIMARY KEY ('"+OWNER_ID+"'));";
 
 	public static final String CREATE_SURVEY = "CREATE TABLE IF NOT EXISTS "+SURVEY_TABLE+
-															"('"+SURVEY_ID+"' VARCHAR '"+
-															OWNER_ID+"' VARCHAR '"+
-															SURVEY_START_DATE+"' VARCHAR '"+
-															SURVEY_END_DATE+"' VARCHAR '"+
-															"PRIMARY KEY ('"+OWNER_ID+"','"+SURVEY_ID+"));";
+															"('"+SURVEY_ID+"' VARCHAR, '"+
+															OWNER_ID+"' VARCHAR, '"+
+															SURVEY_START_DATE+"' VARCHAR, '"+
+															SURVEY_END_DATE+"' VARCHAR, "+
+															"PRIMARY KEY ('"+OWNER_ID+"','"+SURVEY_ID+"'));";
 	
 }

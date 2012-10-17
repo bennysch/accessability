@@ -33,6 +33,7 @@ public class UploadActivity extends Activity implements DBConstants {
 //	final int FORM_FIX_2 = 5;
 	final int FORM_MEASURE = 6;
 	final int FORM_CAM = 7;
+	final int FORM_CAN_DUPLICATE = 8;
 
 	final int FIRST_DATA_ROW = 1;
 
@@ -54,6 +55,15 @@ public class UploadActivity extends Activity implements DBConstants {
 			e.printStackTrace();
 		}
 
+		/**/Log.i("SOL" , CREATE_INSTRUCTIONS);
+		/**/Log.i("SOL" , CREATE_SHEETS);
+		/**/Log.i("SOL" , CREATE_SECTIONS);
+		/**/Log.i("SOL" , CREATE_ITEMS);
+		/**/Log.i("SOL" , CREATE_FIXES);
+		/**/Log.i("SOL" , CREATE_OWNER);
+		/**/Log.i("SOL" , CREATE_SURVEY);
+		/**/Log.i("SOL" , CREATE_DATA);
+		
 		//remove old tables if  exist (form only) 
 
 		mDb.execSQL("drop table if exists "+FORM_INSTRUCTIONS_TABLE+";");
@@ -69,6 +79,7 @@ public class UploadActivity extends Activity implements DBConstants {
 		mDb.execSQL(CREATE_FIXES);
 		
 		//create the data tables (only if the don't already exist)
+		/**/String s = CREATE_OWNER;
 		mDb.execSQL(CREATE_OWNER);
 		mDb.execSQL(CREATE_SURVEY);
 		mDb.execSQL(CREATE_DATA);
@@ -153,6 +164,7 @@ public class UploadActivity extends Activity implements DBConstants {
 //			}
 
 			if(mDb.insert(FORM_SHEET_TABLE, null, values) != -1){
+				//if the sheet is that of operation instructions.
 				if(sheet.getName().indexOf(getString(R.string.instructionTitle)) != -1){
 					// get instructions
 					for(row = FIRST_DATA_ROW; row < sheet.getRows() ; row++){
@@ -170,6 +182,7 @@ public class UploadActivity extends Activity implements DBConstants {
 						}
 					}
 				}
+				//if the sheet is of "real" questions
 				else {
 					//for each row
 					for (row = 0; row < sheet.getRows(); row++){
@@ -183,7 +196,9 @@ public class UploadActivity extends Activity implements DBConstants {
 							values.clear();
 							values.put(SHEET_ID, String.valueOf(sheetId));
 							values.put(SECTION_ID, String.valueOf(++sectionId));
+							values.put(DUPLICATE_ID, "0");
 							values.put(SECTION_TITLE, sheet.getCell(FORM_SECTION, row).getContents());
+							values.put(CAN_DUPLICATE, sheet.getCell(FORM_CAN_DUPLICATE, row).getContents());
 
 							if(mDb.insert(FORM_SECTION_TABLE, null, values) == -1){
 							}
@@ -195,10 +210,12 @@ public class UploadActivity extends Activity implements DBConstants {
 							values.put(SHEET_ID, String.valueOf(sheetId));
 							values.put(SECTION_ID, String.valueOf(sectionId));
 							values.put(ITEM_ID, String.valueOf(++itemId));
+							values.put(DUPLICATE_ID, "0");
 							values.put(SHORT_TEXT, sheet.getCell(FORM_SHORT_TEXT, row).getContents());
 							values.put(LONG_TEXT, sheet.getCell(FORM_LONG_TEXT, row).getContents());
 							values.put(DO_MEASURE, sheet.getCell(FORM_MEASURE, row).getContents());
 							values.put(DO_PHOTO, sheet.getCell(FORM_CAM, row).getContents());
+							values.put(CAN_DUPLICATE, sheet.getCell(FORM_CAN_DUPLICATE, row).getContents().equals("") ? 0 : 1);
 
 							if(mDb.insert(FORM_ITEM_TABLE, null, values) == -1){
 							}

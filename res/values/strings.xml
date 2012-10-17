@@ -26,5 +26,7 @@
 	<string name="fix_b">:התאמה שניה</string>
 	<string name="comments">:הערות</string>
 	<string name="question_mark">- ? -</string>
+	<string name="duplicate">הוסף</string>
+	
 	
 </resources>
