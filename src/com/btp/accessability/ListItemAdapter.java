@@ -14,6 +14,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -21,10 +22,15 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.widget.AbsListView;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
 import android.widget.BaseExpandableListAdapter;
 import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
 
@@ -49,26 +55,26 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 	ItemList parent = null;
 	DatabaseHelper mDbHelper;
 	SQLiteDatabase mDb = null;
-	String mSheetId = "";
+	int mSheetId = 0;
 
 	public ListItemAdapter(){
 		super();
-		init(null, null, "");
+		init(null, null, 0);
 	}
 
-	public ListItemAdapter(Context c, String sId){
+	public ListItemAdapter(Context c, int sId){
 		super();
 
 		init(c, null, sId);
 
 	}
 
-	public ListItemAdapter(Context c, ItemList parent, String sId){
+	public ListItemAdapter(Context c, ItemList parent, int sId){
 		super();
 		init(c, parent, sId);
 	}
 
-	private void init(Context c, ItemList parent, String sId){
+	private void init(Context c, ItemList parent, int sId){
 
 		ctxt = c;
 		this.parent = parent;
@@ -101,9 +107,9 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 	//fetch group titles from the DB
 	private void fillGroups() {	
 		//read all sections into group list
-		String[] args = new String[1];
+		//String[] args = new String[1];
 		SectionData group;
-		args[0] = new String(mSheetId);
+		//args[0] = new String(mSheetId);
 		int i;
 		int count;
 		//Cursor c = mDb.query(FORM_SECTION_TABLE, null, SHEET_ID+" = '?'", args, null, null, null);
@@ -116,12 +122,12 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 		if(c.moveToFirst()){
 			do{
 				group = new SectionData();
-				group.sectionId = c.getString(c.getColumnIndex(SECTION_ID));
+				group.sectionId = c.getInt(c.getColumnIndex(SECTION_ID));
 				group.sectionTitle = c.getString(c.getColumnIndex(SECTION_TITLE));
 				group.sheetId = mSheetId;
-				group.duplicateId = "0";
+				group.duplicateId = 0;
 				//group.canDuplicate = ! c.getString(c.getColumnIndex(CAN_DUPLICATE)).equals(""); // true if not empty
-				group.canDuplicate =  (c.getInt(c.getColumnIndex(CAN_DUPLICATE)) == 1);
+				group.canDuplicate =  (c.getString(c.getColumnIndex(CAN_DUPLICATE)));
 				mGroups.add(group);
 			} while(c.moveToNext());
 		}
@@ -148,7 +154,8 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 			//				/*debug*/			Log.i(FORM_ITEM_TABLE, cc.getString(0) +" <> "+ cc.getString(1)+" <> "+ cc.getString(2)+" <> "+ cc.getString(3)+" <> "+ cc.getString(4)+" <> "+ cc.getString(5)+" <> "+ cc.getString(6));
 			//			/*debug*/		} while(cc.moveToNext());
 
-			args[0] = mGroups.get(i).sectionId;
+			//args[0] = mGroups.get(i).sectionId;
+
 			query = new String( SECTION_ID+" = '"+ mGroups.get(i).sectionId+"'");
 			c = mDb.query(FORM_ITEM_TABLE, null, query, null, null, null, null);
 			count = c.getCount();
@@ -158,7 +165,8 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 				j = 0;
 				do {
 					item = new Item();
-					item.itemId = c.getString(c.getColumnIndex(ITEM_ID));
+					item.itemId = c.getInt(c.getColumnIndex(ITEM_ID));
+					item.canDuplicate = c.getString(c.getColumnIndex(CAN_DUPLICATE));
 					item.itemShortText = c.getString(c.getColumnIndex(SHORT_TEXT));
 					item.ItemLongText = c.getString(c.getColumnIndex(LONG_TEXT));
 					item.doMeasure = !c.getString(c.getColumnIndex(DO_MEASURE)).equals("");
@@ -191,8 +199,9 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 				c = mDb.query(FORM_FIX_TABLE, null, query + qFix1, null, null, null, null);
 				count = c.getCount();
 				if(count > 0){
-					mFix1s[i][j] = new String[count];
+					mFix1s[i][j] = new String[count + 1];// +1 because we need a place for the first line that says please choos an answer.
 					k = 0;
+					mFix1s[i][j][k++] = ctxt.getString(R.string.all_well);
 					c.moveToFirst();
 					do{
 						mFix1s[i][j][k] = c.getString(c.getColumnIndex(FIX_TEXT));
@@ -204,8 +213,9 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 				c = mDb.query(FORM_FIX_TABLE, null, query + qFix2, null, null, null, null);
 				count = c.getCount();
 				if(count > 0){
-					mFix2s[i][j] = new String[count];
+					mFix2s[i][j] = new String[count + 1];// +1 because we need a place for the first line that says please choos an answer.
 					k = 0;
+					mFix2s[i][j][k++] = ctxt.getString(R.string.all_well);
 					c.moveToFirst();
 					do{
 						mFix2s[i][j][k] = c.getString(c.getColumnIndex(FIX_TEXT));
@@ -241,27 +251,63 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 
 	public View getChildView(int gid, int cid, boolean arg2, View arg3,
 			ViewGroup arg4) {
+		View child;
+		int trueGid = (int)getGroupId(gid);
+		LayoutInflater inflater = LayoutInflater.from(ctxt);
 
-		if(mItemLoaded[gid][cid] == null){
-			final String shortText =  mItems[gid][cid].itemShortText;
-			final String longText =  mItems[gid][cid].ItemLongText;
+		// if the item is a duplicate identity item.
+		if(!  mItems[trueGid][cid].canDuplicate.equals("")){
+			child = (View)inflater.inflate(R.layout.identity_item, null);
+			((TextView)child.findViewById(R.id.identity_label)).setText(" זיהוי " + mGroups.get(gid).canDuplicate);
+		}
+		// if the item is a regular item
+		else{
+			final String shortText =  mItems[trueGid][cid].itemShortText;
+			final String longText =  mItems[trueGid][cid].ItemLongText;
 
-			LayoutInflater inflater = LayoutInflater.from(ctxt);
-			View child = (View)inflater.inflate(R.layout.item1, null);
+			child = (View)inflater.inflate(R.layout.item1, null);
 
-			//child.setmShortTExt(mItems[gid][cid].itemShortText);
+			//child.setmShortTExt(mItems[trueGid][cid].itemShortText);
 			((TextView)child.findViewById(R.id.short_text)).setText(shortText);
-			((ImageButton)child.findViewById(R.id.measure)).setVisibility((mItems[gid][cid].doMeasure) ? View.VISIBLE : View.INVISIBLE);
-			((ImageButton)child.findViewById(R.id.photo)).setVisibility((mItems[gid][cid].doPhoto) ? View.VISIBLE : View.INVISIBLE);
+			((ImageButton)child.findViewById(R.id.measure)).setVisibility((mItems[trueGid][cid].doMeasure) ? View.VISIBLE : View.INVISIBLE);
+			((ImageButton)child.findViewById(R.id.photo)).setVisibility((mItems[trueGid][cid].doPhoto) ? View.VISIBLE : View.INVISIBLE);
 
 			//add options to dropdown boxes
-			ArrayAdapter<String> fixAdapter1 = new ArrayAdapter<String>(ctxt, R.layout.drop_down_text, mFix1s[gid][cid]);
-			((Spinner)child.findViewById(R.id.fix_1)).setAdapter(fixAdapter1);
-			ArrayAdapter<String> fixAdapter2 = new ArrayAdapter<String>(ctxt, R.layout.drop_down_text, mFix2s[gid][cid]);
-			((Spinner)child.findViewById(R.id.fix_2)).setAdapter(fixAdapter2);
+			Spinner fix1Sp = (Spinner)child.findViewById(R.id.fix_1);
+			Spinner fix2Sp = (Spinner)child.findViewById(R.id.fix_2);
+			//			Spinner takin = ((Spinner)child.findViewById(R.id.takin));
+			ImageView takin = ((ImageView)child.findViewById(R.id.takin));
+
+			ArrayAdapter<String> fixAdapter1 = new ArrayAdapter<String>(ctxt, R.layout.drop_down_text, mFix1s[trueGid][cid]);
+			ArrayAdapter<String> fixAdapter2 = new ArrayAdapter<String>(ctxt, R.layout.drop_down_text, mFix2s[trueGid][cid]);
 			TakinAdapter<TakinItem> takinAdapter = new TakinAdapter<TakinItem>(ctxt, R.layout.takin_selection, R.id.takin_text, mTakinArray);
-			Spinner takin = ((Spinner)child.findViewById(R.id.takin));
-			takin.setAdapter(takinAdapter);
+
+			fix1Sp.setAdapter(fixAdapter1);
+
+			fix1Sp.setOnItemSelectedListener(new OnItemSelectedListener() {
+
+				public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
+					// set the takin/not-takin picture
+					ImageView takinIv = (ImageView)((RelativeLayout)parent.getParent().getParent()).findViewById(R.id.takin);
+					Spinner fix2Sp = (Spinner)((RelativeLayout)parent.getParent().getParent()).findViewById(R.id.fix_2);
+					if(pos == 0){ // set pic to takin
+						takinIv.setImageBitmap(BitmapFactory.decodeResource(ctxt.getResources(), R.drawable.takin_button));
+						fix2Sp.setEnabled(false);					}
+					else{ // set pic to not takin
+						takinIv.setImageBitmap(BitmapFactory.decodeResource(ctxt.getResources(), R.drawable.not_takin_button));
+						fix2Sp.setEnabled(true);
+					}
+				}
+
+				public void onNothingSelected(AdapterView<?> arg0) {
+					// TODO nothing to do here
+
+				}
+
+			});
+
+			fix2Sp.setAdapter(fixAdapter2);
+			//takin.setAdapter(takinAdapter);
 
 
 
@@ -283,24 +329,13 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 					}).show();
 				}
 			});
-
-			//TODO change "takin" from image button to drop-down box.
-			//		child.findViewById(R.id.takin).setOnClickListener(new OnClickListener() {
-			//
-			//			public void onClick(View v) {
-			//			}
-			//		});
-
-			mItemLoaded[gid][cid] = child;
-
-			return  child;
 		}
-		else
-			return mItemLoaded[gid][cid];
+
+		return  child;
 	}
 
 	public int getChildrenCount(int gid) {
-		
+
 		return mItems[Integer.valueOf(mGroups.get(gid).sectionId)].length; 
 		//return mItems[gid].length;
 	}
@@ -320,15 +355,20 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 
 	public long getGroupId(int gid) {
 		// TODO if the group has other ID then it's index this method should return it.
-		return gid;
+		//return gid;
+		return mGroups.get(gid).sectionId;
 	}
 
 	public View getGroupView(int gid, boolean isExpanded, View convertView, ViewGroup parent) {
 
-			TextView textView = getGenericView();
-
+		TextView textView = getGenericView();
+		SectionData group = (SectionData)getGroup(gid);
+		if(! group.canDuplicate.equals("")){
+			textView.setText(group.toString() + "  #"+group.duplicateId);
+		}
+		else
 			textView.setText(getGroup(gid).toString());
-			return textView;
+		return textView;
 
 	}
 
@@ -353,37 +393,6 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 
 		textView.setPadding(40, 0, 0, 0);
 		return textView;
-
-	}
-
-	// a title for an expanded list group that can be duplicated.
-	public View getDuplicateView(String title) {
-
-		Resources res = ctxt.getResources();
-		Drawable bg = res.getDrawable(R.layout.gradient_titlegroup);
-		AbsListView.LayoutParams lp = new AbsListView.LayoutParams(
-				ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-		LayoutInflater inflater = LayoutInflater.from(ctxt);
-		View dupView = (View)inflater.inflate(R.layout.section_with_duplicate, null);
-
-		dupView.setLayoutParams(lp);
-		dupView.setBackgroundDrawable(bg);
-		TextView tv = (TextView)(dupView.findViewById(R.id.section_title));
-		tv.setText(title);
-		tv.setTextSize(TypedValue.COMPLEX_UNIT_SP ,22.0f);
-		tv.setTypeface(Typeface.DEFAULT_BOLD);//,
-		tv.setTextColor(Color.BLACK);
-		dupView.setPadding(40, 0, 0, 0);
-		
-		Button dup = (Button)dupView.findViewById(R.id.section_duplicate);
-		dup.setOnClickListener(new OnClickListener() {
-			
-			public void onClick(View v) {
-				// TODO Auto-generated method stub
-				
-			}
-		});
-		return dupView;
 
 	}
 

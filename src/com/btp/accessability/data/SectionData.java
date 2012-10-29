@@ -2,11 +2,12 @@ package com.btp.accessability.data;
 
 public class SectionData {
 
-	public String sheetId;
-	public String sectionId;
-	public String duplicateId;
+	public int sheetId;
+	public int sectionId;
+	public int duplicateId;
 	public String sectionTitle;
-	public boolean canDuplicate;
+	//public boolean canDuplicate;
+	public String canDuplicate;
 	
 	
 	@Override

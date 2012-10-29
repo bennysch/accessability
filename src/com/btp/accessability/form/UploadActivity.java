@@ -78,11 +78,6 @@ public class UploadActivity extends Activity implements DBConstants {
 		mDb.execSQL(CREATE_ITEMS);
 		mDb.execSQL(CREATE_FIXES);
 		
-		//create the data tables (only if the don't already exist)
-		/**/String s = CREATE_OWNER;
-		mDb.execSQL(CREATE_OWNER);
-		mDb.execSQL(CREATE_SURVEY);
-		mDb.execSQL(CREATE_DATA);
 		//close DB
 		mDb.close();
 	}
@@ -121,7 +116,7 @@ public class UploadActivity extends Activity implements DBConstants {
 		FormInstructions fInstruct;
 		Workbook workbook = null;
 		int sheetId = 0;
-		int sectionId = 0;
+		int sectionId = -1;
 		int itemId = 0;
 		int fixId = 0;
 
@@ -157,11 +152,9 @@ public class UploadActivity extends Activity implements DBConstants {
 			//if sheet = instruction sheet
 			//write down sheet info and assign sheet id to the rest of the information
 			values.clear();
-			values.put(SHEET_ID, String.valueOf(++sheetId));
+			values.put(SHEET_ID, ++sheetId);
 			values.put(SHEET_NAME, sheet.getName());
 			// write instruction to DB
-//			if(mDb.insert(FORM_SHEET_TABLE, null, values) == -1){
-//			}
 
 			if(mDb.insert(FORM_SHEET_TABLE, null, values) != -1){
 				//if the sheet is that of operation instructions.
@@ -193,29 +186,46 @@ public class UploadActivity extends Activity implements DBConstants {
 						}
 						//else if row is section  (there is something in the section column) - insert section
 						else if(!sheet.getCell(FORM_SECTION, row).getContents().equals("")){
+							String canDup = sheet.getCell(FORM_CAN_DUPLICATE, row).getContents();
 							values.clear();
-							values.put(SHEET_ID, String.valueOf(sheetId));
-							values.put(SECTION_ID, String.valueOf(++sectionId));
+							values.put(SHEET_ID, sheetId);
+							values.put(SECTION_ID, ++sectionId);
 							values.put(DUPLICATE_ID, "0");
 							values.put(SECTION_TITLE, sheet.getCell(FORM_SECTION, row).getContents());
-							values.put(CAN_DUPLICATE, sheet.getCell(FORM_CAN_DUPLICATE, row).getContents());
+							values.put(CAN_DUPLICATE, canDup);
 
 							if(mDb.insert(FORM_SECTION_TABLE, null, values) == -1){
 							}
+							//if the section can be duplicated - add an item for identifying each duplicate.
+							if(! canDup.equals("")){
+								values.clear();
+								values.put(SHEET_ID, sheetId);
+								values.put(SECTION_ID, sectionId);
+								values.put(ITEM_ID, ++itemId);
+								values.put(SHORT_TEXT, "ждей"); // TODO move ждей to R.Strings
+								values.put(LONG_TEXT, "");
+								values.put(DUPLICATE_ID, "0");
+								values.put(DO_MEASURE, "");
+								values.put(DO_PHOTO, "");
+								values.put(CAN_DUPLICATE, canDup);
 
+								if(mDb.insert(FORM_ITEM_TABLE, null, values) == -1){
+								}
+	
+							}
 						}
 						//else if row is item  (there is something in the short text column) - insert item
 						else if (!sheet.getCell(FORM_SHORT_TEXT, row).getContents().equals("")){
 							values.clear();
-							values.put(SHEET_ID, String.valueOf(sheetId));
-							values.put(SECTION_ID, String.valueOf(sectionId));
-							values.put(ITEM_ID, String.valueOf(++itemId));
+							values.put(SHEET_ID, sheetId);
+							values.put(SECTION_ID, sectionId);
+							values.put(ITEM_ID, ++itemId);
 							values.put(DUPLICATE_ID, "0");
 							values.put(SHORT_TEXT, sheet.getCell(FORM_SHORT_TEXT, row).getContents());
 							values.put(LONG_TEXT, sheet.getCell(FORM_LONG_TEXT, row).getContents());
 							values.put(DO_MEASURE, sheet.getCell(FORM_MEASURE, row).getContents());
 							values.put(DO_PHOTO, sheet.getCell(FORM_CAM, row).getContents());
-							values.put(CAN_DUPLICATE, sheet.getCell(FORM_CAN_DUPLICATE, row).getContents().equals("") ? 0 : 1);
+							values.put(CAN_DUPLICATE, sheet.getCell(FORM_CAN_DUPLICATE, row).getContents());
 
 							if(mDb.insert(FORM_ITEM_TABLE, null, values) == -1){
 							}

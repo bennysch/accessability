@@ -30,7 +30,7 @@ public class ItemList extends Activity implements DBConstants{
 	LinearLayout mDuplicateBar;
 	DatabaseHelper dbHelper;
 	SQLiteDatabase db = null;
-	Map<Integer, String[]> mDupButtonData = new HashMap<Integer, String[]>();
+	Map<Integer, int[]> mDupButtonData = new HashMap<Integer, int[]>();
 	Context mCtxt = this;
 	
 	Item[] itemContent =  {};
@@ -42,8 +42,9 @@ public class ItemList extends Activity implements DBConstants{
 		mList = (ExpandableListView)this.findViewById(R.id.main_list);
 		mDuplicateBar = (LinearLayout) this.findViewById(R.id.duplicate_bar);
 		
-		String sheetId = new String(getIntent().getCharArrayExtra("com.btp.accessability.sheetId"));
-		String sectionId;
+		//int sheetId = Integer.valueOf(getIntent().getCharArrayExtra("com.btp.accessability.sheetId").toString());
+		int sheetId = getIntent().getIntExtra("com.btp.accessability.sheetId", -1);
+		int sectionId;
 		String canDup;
 		
 		// get the list adapter and attach it to mlist.
@@ -68,14 +69,14 @@ public class ItemList extends Activity implements DBConstants{
 		Button dupButton;
 		do{
 		//create the buttons  and add them to the bar.
-			sectionId = c.getString(c.getColumnIndex(SECTION_ID));
+			sectionId = c.getInt(c.getColumnIndex(SECTION_ID));
 			canDup = c.getString(c.getColumnIndex(CAN_DUPLICATE));
 			dupButton = new Button(this);
 			//TODO add the sheetId and sectionId to the button
 			dupButton.setText(this.getString(R.string.duplicate) +" "+ canDup );
 			dupButton.setPadding(4, 4, 4, 4);
 			dupButton.setId(bId++);
-			mDupButtonData.put(dupButton.getId(), new String[] {sheetId, sectionId});
+			mDupButtonData.put(dupButton.getId(), new int[] {sheetId, sectionId});
 			
 			//set the button's On Click Listener
 			dupButton.setOnClickListener(new OnClickListener() {
@@ -85,29 +86,28 @@ public class ItemList extends Activity implements DBConstants{
 					int i;
 					SectionData data;
 					boolean found;
-					String dupId = "";
-					
+					int dupId = 0;
 					//find the section to duplicate in the list of groups
 					//List<SectionData> groups = mItemAdapter.mGroups;
 					int buttonId = v.getId();
-					String sheetId = mDupButtonData.get(buttonId)[0];
-					String sectId = mDupButtonData.get(buttonId)[1];
+					int sheetId = mDupButtonData.get(buttonId)[0];
+					int sectId = mDupButtonData.get(buttonId)[1];
 					
 					found = false;
 					for(i = 0; i < mItemAdapter.getGroupCount(); i++){
 						data = (SectionData) mItemAdapter.getGroup(i);
-						if(! found && data.sheetId.equals(sheetId) && data.sectionId.equals(sectId)){
+						if(! found && data.sheetId == sheetId && data.sectionId == sectId){
 							found = true;
 						}
-						else if(found && data.sheetId.equals(sheetId) && ! data.sectionId.equals(sectId))
+						else if(found && data.sheetId == sheetId &&  data.sectionId != sectId)
 							break;
 					}
 
 					data = (SectionData) mItemAdapter.getGroup(i - 1);
-					dupId = ""+Integer.valueOf(data.duplicateId)+1;
+					dupId = data.duplicateId + 1;
 					//create a mew section
 					SectionData newSect = new SectionData();
-					newSect.canDuplicate = true;
+					newSect.canDuplicate = data.canDuplicate;
 					newSect.duplicateId = dupId;
 					newSect.sheetId = sheetId;
 					newSect.sectionId = sectId;

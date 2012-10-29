@@ -7,9 +7,12 @@ import android.database.Cursor;
 import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemSelectedListener;
+import android.widget.ArrayAdapter;
 import android.widget.ImageButton;
+import android.widget.Spinner;
 
 import com.btp.accessability.data.DBConstants;
 import com.btp.accessability.data.DatabaseHelper;
@@ -27,13 +30,17 @@ public class KayamMain extends Activity implements DBConstants{
 
 	DatabaseHelper mDbHelper;
 	SQLiteDatabase mDb = null;
+	
 
 	public void onCreate(Bundle bundle){
         super.onCreate(bundle);
-	}
+        
+ 	}
 
 	@Override
 	protected void onStart() {
+
+		
 		super.onStart();
         setContentView(R.layout.kayam_main);
         ctxt = this;
@@ -57,7 +64,7 @@ public class KayamMain extends Activity implements DBConstants{
 	        	data = getSheetId("הנחיות");
 	        	intent = new Intent(ctxt,  InstructionList.class);
 	        	intent.putExtra("com.btp.accessability.sheetTitle", data.sheetTitle.toCharArray());
-	        	intent.putExtra("com.btp.accessability.sheetId", data.sheetId.toCharArray());
+	        	intent.putExtra("com.btp.accessability.sheetId", data.sheetId);
 				startActivity(intent);
 			}
 		});
@@ -74,7 +81,7 @@ public class KayamMain extends Activity implements DBConstants{
 	        	data = getSheetId("כללי");
 	        	intent = new Intent(ctxt,  ItemList.class);
 	        	intent.putExtra("com.btp.accessability.sheetTitle", data.sheetTitle.toCharArray());
-	        	intent.putExtra("com.btp.accessability.sheetId", data.sheetId.toCharArray());
+	        	intent.putExtra("com.btp.accessability.sheetId", data.sheetId);
 				startActivity(intent);
 			}
 		});
@@ -133,7 +140,7 @@ public class KayamMain extends Activity implements DBConstants{
 		cursor = mDb.query(FORM_SHEET_TABLE, columns, SHEET_NAME+" LIKE '%"+fragment+"%' ", null, null, null, null);		//fill sheet structure
 		cursor.moveToFirst();
 //		/*debug*/			Log.i(FORM_SHEET_TABLE, cursor.getString(0) +" <> "+ cursor.getString(1));
-		res.sheetId = cursor.getString(cursor.getColumnIndex(SHEET_ID));
+		res.sheetId = Integer.valueOf(cursor.getString(cursor.getColumnIndex(SHEET_ID)));
 		res.sheetTitle = cursor.getString(cursor.getColumnIndex(SHEET_NAME));
 		//return data;
 		

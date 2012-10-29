@@ -2,8 +2,11 @@ package com.btp.accessability.data;
 
 public class Item {
 
-	public String itemId;
-	public String duplicateId;
+	public int itemId;
+	public int duplicateId;
+	public String canDuplicate;
+	public int sheetId;
+	public int sectionId;
 	public String itemShortText;
 	public String ItemLongText;
 	public String takin;
