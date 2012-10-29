@@ -8,10 +8,12 @@
     <string name="not_yet">בגרסה הבאה</string>
     
     
-    <string name="details">פרטי הבנין</string>
+    <string name="details">פרטי הסקר</string>
+    <string name="survay_id_l">:\'סקר מס</string>
     <string name="owner_name">:שם/בעלים</string>
     <string name="street_address">:כתובת</string>
     <string name="date">:תאריך</string>
+    <string name="new_survey">סקר חדש</string>
 
     <string name="outomeLbl">תוצאה</string>
     <string name="firstAdaptLbl">התאמה ראשונה</string>
@@ -27,6 +29,9 @@
 	<string name="comments">:הערות</string>
 	<string name="question_mark">- ? -</string>
 	<string name="duplicate">הוסף</string>
+	<string name="all_well">לא נדרשת התאמה</string>
+	
+		
 	
 	
 </resources>
