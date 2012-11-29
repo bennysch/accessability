@@ -48,7 +48,7 @@ public class AccessabilityActivity extends Activity implements DBConstants{
 		int i;
 		String name;
 		Spinner sp;
-		final SharedPreferences prefs = this.getSharedPreferences("com.btp.accessability", this.MODE_PRIVATE);
+		final SharedPreferences prefs = this.getSharedPreferences("com.btp.accessability", this.MODE_APPEND | this.MODE_WORLD_READABLE);
 		
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
@@ -101,7 +101,10 @@ public class AccessabilityActivity extends Activity implements DBConstants{
 					
 					mDb.insertWithOnConflict(SURVEY_TABLE, null, values, SQLiteDatabase.CONFLICT_IGNORE);
 					mDb.close();
-					prefs.edit().putInt(SURVEY_ID, 1);
+					SharedPreferences.Editor prefEdit = prefs.edit();
+					prefEdit.putInt(SURVEY_ID, 1);
+					prefEdit.commit();
+					
 				}
 			}
 

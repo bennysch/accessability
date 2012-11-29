@@ -12,13 +12,13 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_weight="0.34" >
-<!-- android:layout_alignBottom="@+id/texts" -->
+
+        <!-- android:layout_alignBottom="@+id/texts" -->
+
         <RelativeLayout
             android:id="@+id/buttons"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-           
-            
             android:layout_alignParentLeft="true"
             android:layout_alignParentTop="true" >
 
@@ -30,15 +30,16 @@
             <!-- android:layout_alignParentTop="true" -->
             <!-- android:src="@drawable/takin_button" /> -->
 
-<!--             <Spinner -->
+
+            <!-- <Spinner -->
+
             <ImageView
                 android:id="@+id/takin"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_alignParentLeft="true"
-                android:layout_alignParentTop="true" 
-                android:src="@drawable/takin_button"
-                />
+                android:layout_alignParentTop="true"
+                android:src="@drawable/takin_button" />
 
             <ImageButton
                 android:id="@+id/photo"
@@ -63,7 +64,6 @@
             android:id="@+id/texts"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            
             android:layout_alignParentRight="true"
             android:layout_alignParentTop="true"
             android:layout_toRightOf="@id/buttons" >
@@ -99,7 +99,7 @@
                 android:text="@string/fix_a"
                 android:textAppearance="?android:attr/textAppearanceLarge" />
 
-            <Spinner
+            <com.btp.accessability.components.AccessSpinner
                 android:id="@id/fix_1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -137,17 +137,33 @@
                 android:text="@string/comments"
                 android:textAppearance="?android:attr/textAppearanceLarge" />
 
-            <EditText
+            <!-- <EditText -->
+            <!-- android:id="@id/comments_field" -->
+            <!-- android:layout_width="wrap_content" -->
+            <!-- android:layout_height="wrap_content" -->
+            <!-- android:layout_alignParentBottom="true" -->
+            <!-- android:layout_alignParentLeft="true" -->
+            <!-- android:layout_below="@id/fix_2" -->
+            <!-- android:layout_marginLeft="24dp" -->
+            <!-- android:textColor="#00000000" -->
+            <!-- android:layout_toLeftOf="@id/comments_label" -->
+            <!-- android:ems="10" > -->
+            <!-- </EditText> -->
+
+            <TextView
                 android:id="@id/comments_field"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_alignParentBottom="true"
                 android:layout_alignParentLeft="true"
                 android:layout_below="@id/fix_2"
+                android:layout_marginBottom="10dp"
                 android:layout_marginLeft="24dp"
                 android:layout_toLeftOf="@id/comments_label"
-                android:ems="10" >
-            </EditText>
+                android:background="#ffffffff"
+                android:textAppearance="?android:attr/textAppearanceLarge"
+                android:textColor="#00000000" >
+            </TextView>
         </RelativeLayout>
 
         <TextView
@@ -162,4 +178,4 @@
             android:text="" />
     </RelativeLayout>
 
-</LinearLayout><!-- </merge> -->
+</LinearLayout> <!-- </merge> -->

@@ -1,15 +1,19 @@
 package com.btp.accessability;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.database.Cursor;
 import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -26,57 +30,70 @@ import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
 import android.widget.BaseExpandableListAdapter;
-import android.widget.Button;
+import android.widget.ExpandableListView;
 import android.widget.ImageButton;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
+import android.widget.PopupWindow;
 import android.widget.RelativeLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
 
+import com.btp.accessability.components.AccessSpinner;
+import com.btp.accessability.components.AccessTextView;
 import com.btp.accessability.data.DBConstants;
 import com.btp.accessability.data.DatabaseHelper;
 import com.btp.accessability.data.Item;
+import com.btp.accessability.data.ItemData;
 import com.btp.accessability.data.SectionData;
-import com.btp.accessability.data.TakinItem;
-import com.btp.accessability.form.TakinAdapter;
+import com.btp.accessability.form.TextPopupWindow;
 
 public class ListItemAdapter extends BaseExpandableListAdapter implements DBConstants{
 
+	final int TAKIN = 0;
+	final int NOT_TAKIN = 1;
+	final int IRRELEVANT = 2;
+
 	List<SectionData> mGroups;
 	Item [][] mItems;
-	//	Fix[][][] fix1s;
-	//	Fix[][][] fix2s;
 	String[][][] mFix1s;
 	String[][][] mFix2s;
-	View[][] mItemLoaded; // to be removed after persistance is in place; 
-	TakinItem[] mTakinArray;
+	//View[][] mItemLoaded; // to be removed after persistance is in place; 
+	public Map<String, ItemData> mSavedItems;
+	//	TakinItem[] mTakinArray;
+	Bitmap[] mTakinArray;
 	Context ctxt =  null;
 	ItemList parent = null;
 	DatabaseHelper mDbHelper;
 	SQLiteDatabase mDb = null;
 	int mSheetId = 0;
+	int mSurveyId;
+	
+	String key;
+	View child;
+
+	SharedPreferences prefs;
 
 	public ListItemAdapter(){
-		super();
-		init(null, null, 0);
+		this(null, null, 0);
 	}
 
 	public ListItemAdapter(Context c, int sId){
-		super();
+		this(c, null, sId);
+	}
 
-		init(c, null, sId);
-
+	public ListItemAdapter(Context c, int sId, Map<String, ItemData> savedItems){
+		this(c, null, sId, savedItems);
 	}
 
 	public ListItemAdapter(Context c, ItemList parent, int sId){
-		super();
-		init(c, parent, sId);
+		this(c, parent, sId, null);
 	}
 
-	private void init(Context c, ItemList parent, int sId){
+	public ListItemAdapter(Context c, ItemList parent, int sId, Map<String, ItemData> savedItems){
+		super();
 
 		ctxt = c;
+		prefs = ctxt.getSharedPreferences("com.btp.accessability",  ctxt.MODE_APPEND | ctxt.MODE_WORLD_READABLE);
 		this.parent = parent;
 		mSheetId = sId;
 		int i,j;
@@ -92,13 +109,14 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 		fillFixs();
 		fillTakinArray();
 
-		mItemLoaded = new View[mGroups.size()][];
-		for(i = 0; i < mGroups.size(); i++){
-			mItemLoaded[i] = new View[mItems[i].length];
-			for (j = 0; j < mItems[i].length; j++){
-				mItemLoaded[i][j] = null;
-			}
-		}
+
+		//initialize  the saved items collection
+		if(savedItems == null)
+			mSavedItems = new HashMap<String, ItemData>();
+		else
+			mSavedItems = savedItems;
+
+		loadSavedItems();
 
 		mDb.close();
 
@@ -229,12 +247,88 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 
 	//fill the images for the takin, not takin, not relevant spinner
 	void fillTakinArray(){
-		mTakinArray = new TakinItem[3];
+		//mTakinArray = new TakinItem[3];
+		mTakinArray = new Bitmap[3];
 
-		mTakinArray[0] = new TakinItem(BitmapFactory.decodeResource(ctxt.getResources(), R.drawable.takin_button), "Takin");
-		mTakinArray[1] = new TakinItem(BitmapFactory.decodeResource(ctxt.getResources(), R.drawable.not_takin_button), "Not Takin");
-		mTakinArray[2] = new TakinItem(BitmapFactory.decodeResource(ctxt.getResources(), R.drawable.irrelevant_button), "irrelevant");
+		mTakinArray[TAKIN] = BitmapFactory.decodeResource(ctxt.getResources(), R.drawable.takin_button);
+		mTakinArray[NOT_TAKIN] = BitmapFactory.decodeResource(ctxt.getResources(), R.drawable.not_takin_button);
+		mTakinArray[IRRELEVANT] = BitmapFactory.decodeResource(ctxt.getResources(), R.drawable.irrelevant_button);
 	}
+
+	// load the saved items from the DB so when they are displayed the contain saved choices.
+	public void loadSavedItems(){
+		mSurveyId = prefs.getInt(SURVEY_ID, 1);
+		String key; 
+		Cursor c;
+		int prevDup;
+		int prevSect;
+
+		if(! mDb.isOpen()){ //if the DB is not open
+			try {
+				mDbHelper = new DatabaseHelper(ctxt);
+				mDb = mDbHelper.getWritableDatabase();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		c = mDb.query(ITEM_DATA_TABLE, null, SURVEY_ID + " = '" + mSurveyId + "' and "+ SHEET_ID + " = '"+mSheetId+"'", 
+					  null, null, null, SECTION_ID+", "+DUPLICATE_ID);
+		if(c.getCount() > 0){
+			c.moveToFirst();
+			prevDup = c.getInt(c.getColumnIndex(DUPLICATE_ID));
+			prevSect = c.getInt(c.getColumnIndex(SECTION_ID));
+			do {
+				ItemData item = new ItemData();
+				item.surveyId =  mSurveyId;
+				item.sheetId = c.getInt(c.getColumnIndex(SHEET_ID));
+				item.sectionId = c.getInt(c.getColumnIndex(SECTION_ID));
+				item.duplicateId = c.getInt(c.getColumnIndex(DUPLICATE_ID));
+				item.itemId = c.getInt(c.getColumnIndex(ITEM_ID));
+				item.takin = c.getInt(c.getColumnIndex(TAKIN_LEVEL)) == 1;
+				item.fix1Select = c.getInt(c.getColumnIndex(FIX_1_SELECTION));
+				item.fix2Select = c.getInt(c.getColumnIndex(FIX_2_SELECTION));
+				item.ItemComment = c.getString(c.getColumnIndex(COMMENT));
+				item.measureResult = c.getDouble(c.getColumnIndex(MEASURE_RESULT));
+				item.imageLocation = c.getString(c.getColumnIndex(IMAGE_LOCATION));
+				item.takin = false;
+
+				//if the item belongs to a duplicate section create the necessary duplicate.
+				if(prevSect == item.sectionId && prevDup != item.duplicateId){
+					boolean found;
+					SectionData data;
+					int i;
+					found = false;
+					for(i = 0; i < this.getGroupCount(); i++){
+						data = (SectionData) this.getGroup(i);
+						if(! found && data.sheetId == item.sheetId && data.sectionId == item.sectionId){
+							found = true;
+						}
+						else if(found && data.sheetId == item.sheetId &&  data.sectionId != item.sectionId)
+							break;
+					}
+					
+					SectionData sect = null;
+					try {
+						sect = mGroups.get(i-1).cloneMe();
+					} catch (CloneNotSupportedException e) {
+						e.printStackTrace();
+						System.exit(1);
+					} 
+					sect.duplicateId = item.duplicateId;
+					mGroups.add(i, sect);
+				}
+				key = makeKey(item.sheetId, item.sectionId, item.duplicateId, item.itemId);
+				mSavedItems.put(key, item);
+				
+				prevDup = item.duplicateId;
+				prevSect = item.sectionId;
+
+			}while(c.moveToNext());
+
+		}
+	}
+
 
 	/////////////////////////////////////////////////////
 	//      implement abstract class methods
@@ -251,14 +345,75 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 
 	public View getChildView(int gid, int cid, boolean arg2, View arg3,
 			ViewGroup arg4) {
-		View child;
+		
+
+		// use trueGid to find the items belonging to a section . for all other purposes use gid 
 		int trueGid = (int)getGroupId(gid);
+
 		LayoutInflater inflater = LayoutInflater.from(ctxt);
+		key = makeKey(mGroups.get(gid), mItems[trueGid][cid]);
 
 		// if the item is a duplicate identity item.
 		if(!  mItems[trueGid][cid].canDuplicate.equals("")){
 			child = (View)inflater.inflate(R.layout.identity_item, null);
+			AccessTextView identity = (AccessTextView)child.findViewById(R.id.identity_text);
 			((TextView)child.findViewById(R.id.identity_label)).setText(" זיהוי " + mGroups.get(gid).canDuplicate);
+			
+			identity.setIdeces(gid, cid, this);
+			//identity.setText("סתם טקסט התחלתי");
+
+			////////////// add action to enable writing to a text view //////////////
+			identity.setOnClickListener(new OnClickListener() {
+				
+				public void onClick(View v) {
+					int X = 0;
+					int Y = 1;
+					int [] childPos = new int[2];
+//					// TODO Auto-generated method stub
+//					LayoutInflater inflator = (LayoutInflater)ctxt.getSystemService(ctxt.LAYOUT_INFLATER_SERVICE);
+//					View layout = inflator.inflate(R.layout.popup_item, null);
+//					
+//					PopupWindow popup = new PopupWindow(ctxt);
+//					popup.setContentView(layout);
+//					popup.setFocusable(true);
+//					popup.setWidth(v.getWidth());
+//					popup.setHeight(v.getHeight() * 3);
+//					v.getLocationInWindow(childPos);
+			//		ItemData itemData = getItemObject(key,v.getGid(), myParent.getCid() );
+					TextPopupWindow popup = new TextPopupWindow(ctxt);
+			//		popup.init((TextView)v, itemData, v.getWidth(), v.getHeight() * 3);
+					v.getLocationInWindow(childPos);
+					popup.showAtLocation(v, Gravity.TOP, childPos[X] , childPos[Y]);
+					
+					Log.e("Popup this", this.getClass().getName());
+					Log.e("Popup v ", v.getClass().getName());
+					Log.e("Popup Button v.parent 1", v.getParent().getClass().getName());
+					Log.e("Popup Button v.parent 2", v.getParent().getParent().getClass().getName());
+					Log.e("Popup Button v.parent 3", v.getParent().getParent().getParent().getClass().getName());
+					Log.e("Popup Button v.parent 4", v.getParent().getParent().getParent().getParent().getClass().getName());
+					Log.e("Popup adapter v.parent 0", ((ExpandableListView)(v.getParent().getParent())).getAdapter().getClass().getName());
+					Log.e("Popup v. >>>>>> 1", v.getClass().getName());
+					
+					
+				}
+			});
+			
+//			identity.setOnFocusChangeListener(new OnFocusChangeListener() {
+//				
+//				public void onFocusChange(View v, boolean hasFocus) {
+//					Log.e("text field =>", (hasFocus ? "has " : "doesn't have ") +"focus");
+//					
+//				}
+//			});
+//			identity.setOnEditorActionListener(new OnEditorActionListener() {
+//				
+//				public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+//					// TODO Auto-generated method stub
+//					Log.e("text field =>", "Editor Action !");
+//					return false;
+//				}
+//			});
+			
 		}
 		// if the item is a regular item
 		else{
@@ -269,21 +424,39 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 
 			//child.setmShortTExt(mItems[trueGid][cid].itemShortText);
 			((TextView)child.findViewById(R.id.short_text)).setText(shortText);
-			((ImageButton)child.findViewById(R.id.measure)).setVisibility((mItems[trueGid][cid].doMeasure) ? View.VISIBLE : View.INVISIBLE);
-			((ImageButton)child.findViewById(R.id.photo)).setVisibility((mItems[trueGid][cid].doPhoto) ? View.VISIBLE : View.INVISIBLE);
-
-			//add options to dropdown boxes
-			Spinner fix1Sp = (Spinner)child.findViewById(R.id.fix_1);
-			Spinner fix2Sp = (Spinner)child.findViewById(R.id.fix_2);
-			//			Spinner takin = ((Spinner)child.findViewById(R.id.takin));
+			ImageButton measureB = (ImageButton)child.findViewById(R.id.measure);
+			ImageButton	photoB = (ImageButton)child.findViewById(R.id.photo);
+			AccessSpinner fix1Sp = (AccessSpinner)child.findViewById(R.id.fix_1);
 			ImageView takin = ((ImageView)child.findViewById(R.id.takin));
+			//EditText comment = (EditText)child.findViewById(R.id.comments_field);
+			TextView comment = (TextView)child.findViewById(R.id.comments_field);
+
+			measureB.setVisibility((mItems[trueGid][cid].doMeasure) ? View.VISIBLE : View.INVISIBLE);
+			photoB.setVisibility((mItems[trueGid][cid].doPhoto) ? View.VISIBLE : View.INVISIBLE);
+
+			//add options to drop-down boxes
+			fix1Sp.setIdeces(gid, cid, this);
+			Spinner fix2Sp = (Spinner)child.findViewById(R.id.fix_2);
 
 			ArrayAdapter<String> fixAdapter1 = new ArrayAdapter<String>(ctxt, R.layout.drop_down_text, mFix1s[trueGid][cid]);
 			ArrayAdapter<String> fixAdapter2 = new ArrayAdapter<String>(ctxt, R.layout.drop_down_text, mFix2s[trueGid][cid]);
-			TakinAdapter<TakinItem> takinAdapter = new TakinAdapter<TakinItem>(ctxt, R.layout.takin_selection, R.id.takin_text, mTakinArray);
 
 			fix1Sp.setAdapter(fixAdapter1);
+			fix2Sp.setAdapter(fixAdapter2);
 
+			//set fields according to saved items
+			if(mSavedItems.containsKey(key)){
+				fix1Sp.setSelection(mSavedItems.get(key).fix1Select);
+				if(mSavedItems.get(key).fix1Select != 0){
+					takin.setImageBitmap(mTakinArray[TAKIN]);
+				}
+				else{
+					takin.setImageBitmap(mTakinArray[NOT_TAKIN]);					
+				}
+			}
+
+
+			///////////// set action for the fix_1 Spinner /////////////
 			fix1Sp.setOnItemSelectedListener(new OnItemSelectedListener() {
 
 				public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
@@ -292,13 +465,21 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 					Spinner fix2Sp = (Spinner)((RelativeLayout)parent.getParent().getParent()).findViewById(R.id.fix_2);
 					if(pos == 0){ // set pic to takin
 						takinIv.setImageBitmap(BitmapFactory.decodeResource(ctxt.getResources(), R.drawable.takin_button));
-						fix2Sp.setEnabled(false);					}
+						fix2Sp.setEnabled(false);
+					}
 					else{ // set pic to not takin
 						takinIv.setImageBitmap(BitmapFactory.decodeResource(ctxt.getResources(), R.drawable.not_takin_button));
 						fix2Sp.setEnabled(true);
 					}
-				}
 
+					AccessSpinner myParent = (AccessSpinner)parent;
+					int trueGid = (int)myParent.getmThis().getGroupId(myParent.getGid());
+					//String key = makeKey(mGroups.get(myParent.getGid()), mItems[trueGid][myParent.getCid()] );
+					//Log.d("Insert Key", "***** "+key +" *****");
+					ItemData itemData = getItemObject(key, myParent.getGid(), myParent.getCid() );
+					itemData.fix1Select = myParent.getSelectedItemPosition();
+					itemData.takin = itemData.fix1Select != 0; 
+				}
 				public void onNothingSelected(AdapterView<?> arg0) {
 					// TODO nothing to do here
 
@@ -306,8 +487,6 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 
 			});
 
-			fix2Sp.setAdapter(fixAdapter2);
-			//takin.setAdapter(takinAdapter);
 
 
 
@@ -329,8 +508,50 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 					}).show();
 				}
 			});
+			
+			//add action to the comment field
+			comment.setOnClickListener(new OnClickListener() {
+				
+				public void onClick(View v) {
+					int X = 0;
+					int Y = 1;
+					int [] childPos = new int[2];
+					// TODO Auto-generated method stub
+					LayoutInflater inflator = (LayoutInflater)ctxt.getSystemService(ctxt.LAYOUT_INFLATER_SERVICE);
+					View layout = inflator.inflate(R.layout.popup_item, null);
+					
+					PopupWindow popup = new PopupWindow(ctxt);
+					popup.setContentView(layout);
+					popup.setFocusable(true);
+					popup.setWidth(v.getWidth());
+					popup.setHeight(v.getHeight() * 3);
+					v.getLocationInWindow(childPos);
+					popup.showAtLocation(v, Gravity.TOP, childPos[X] - 150, childPos[Y]);
+					
+				}
+			});
 		}
-
+//		child.setOnClickListener(new OnClickListener() {
+//			
+//			public void onClick(View v) {
+//				int X = 0;
+//				int Y = 1;
+//				int [] childPos = new int[2];
+//				// TODO Auto-generated method stub
+//				LayoutInflater inflator = (LayoutInflater)ctxt.getSystemService(ctxt.LAYOUT_INFLATER_SERVICE);
+//				View layout = inflator.inflate(R.layout.popup_item, null);
+//				
+//				PopupWindow popup = new PopupWindow(ctxt);
+//				popup.setContentView(layout);
+//				popup.setFocusable(true);
+//				popup.setWidth(child.getWidth());
+//				popup.setHeight(child.getHeight() * 2);
+//				child.getLocationOnScreen(childPos);
+//				popup.showAtLocation(v, Gravity.TOP, childPos[X], childPos[Y]);
+//				
+//			}
+//		});
+		
 		return  child;
 	}
 
@@ -407,5 +628,61 @@ public class ListItemAdapter extends BaseExpandableListAdapter implements DBCons
 		return false;
 	}
 
+
+	/////////// store changes in data ////////////
+	//store all the keys that identify a single item.
+	private ItemData getItemObject(String key,int gid, int cid){
+		ItemData itemData;
+		SectionData section;
+		Item item;
+		int surveyId = prefs.getInt(SURVEY_ID, 1);
+		//String key = makeKey(section.sheetId, section.sectionId, section.duplicateId, item.itemId,  surveyId);
+		// if the key exists update it
+		if (mSavedItems.containsKey(key)){
+			itemData = mSavedItems.get(key);
+			itemData.hasChanged = true;
+			//mSavedItems.remove(key);
+		}
+		// if the key doesn't exist create new
+		else{
+			section = mGroups.get(gid);
+			item = mItems[gid][cid];
+			itemData = new ItemData();
+			itemData.surveyId = surveyId;
+			itemData.sheetId = section.sheetId;
+			itemData.sectionId = section.sectionId;
+			itemData.SectionDuplicateId = section.duplicateId;
+			itemData.itemId = item.itemId;
+			itemData.hasChanged = true;
+			mSavedItems.put(key, itemData);
+		}
+
+		return itemData;
+
+	}
+
+	// make key for itemDdata 
+	private String makeKey(SectionData section, Item item){
+		return makeKey(section.sheetId, section.sectionId, section.duplicateId, item.itemId);
+	}
+
+
+	private String makeKey(int sheet, int section, int duplicate, int item){
+		StringBuilder key = new StringBuilder();
+		key.append(sheet);
+		key.append("X");
+		key.append(section);
+		key.append("X");
+		key.append(duplicate);
+		key.append("X");
+		key.append(item);
+		return key.toString();
+
+	}
+	//find if item already exiItst
+	//
+	//	public Map<String, ItemData> getSavedItems(){
+	//		return mSavedItems;
+	//	}
 
 }

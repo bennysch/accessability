@@ -5,7 +5,9 @@ import java.util.List;
 import java.util.Map;
 
 import android.app.Activity;
+import android.content.ContentValues;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
@@ -19,6 +21,7 @@ import android.widget.LinearLayout;
 import com.btp.accessability.data.DBConstants;
 import com.btp.accessability.data.DatabaseHelper;
 import com.btp.accessability.data.Item;
+import com.btp.accessability.data.ItemData;
 import com.btp.accessability.data.SectionData;
 
 
@@ -28,10 +31,12 @@ public class ItemList extends Activity implements DBConstants{
 	ListItemAdapter mItemAdapter ;
 	ExpandableListView mList;
 	LinearLayout mDuplicateBar;
-	DatabaseHelper dbHelper;
-	SQLiteDatabase db = null;
+	DatabaseHelper mDbHelper;
+	SQLiteDatabase mDb = null;
+	SharedPreferences mPrefs;
 	Map<Integer, int[]> mDupButtonData = new HashMap<Integer, int[]>();
 	Context mCtxt = this;
+	Map<String, ItemData> mSavedItems;
 	
 	Item[] itemContent =  {};
 	Cursor c;
@@ -41,6 +46,9 @@ public class ItemList extends Activity implements DBConstants{
 		this.setContentView(R.layout.kayam_general);
 		mList = (ExpandableListView)this.findViewById(R.id.main_list);
 		mDuplicateBar = (LinearLayout) this.findViewById(R.id.duplicate_bar);
+		mPrefs = this.getSharedPreferences("com.btp.accessability", Activity.MODE_APPEND | Activity.MODE_WORLD_READABLE);
+		Map<String, ?> m = mPrefs.getAll();
+		int sid = mPrefs.getInt(SURVEY_ID, 0);
 		
 		//int sheetId = Integer.valueOf(getIntent().getCharArrayExtra("com.btp.accessability.sheetId").toString());
 		int sheetId = getIntent().getIntExtra("com.btp.accessability.sheetId", -1);
@@ -48,14 +56,17 @@ public class ItemList extends Activity implements DBConstants{
 		String canDup;
 		
 		// get the list adapter and attach it to mlist.
-		mItemAdapter = new ListItemAdapter(this, sheetId);
+		
+		mSavedItems = new HashMap<String, ItemData>();
+//		mItemAdapter = new ListItemAdapter(this, sheetId);
+		mItemAdapter = new ListItemAdapter(this, sheetId, mSavedItems);
 		mList.setAdapter(mItemAdapter);
 
 		
 		//open db
 		try {
-			dbHelper = new DatabaseHelper(this);
-			db = dbHelper.getWritableDatabase();
+			mDbHelper = new DatabaseHelper(this);
+			mDb = mDbHelper.getWritableDatabase();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -64,7 +75,7 @@ public class ItemList extends Activity implements DBConstants{
 		//set the first button Id
 		int bId  = FIRST_ID;
 		//find all the duplicate buttons you need
-		c = db.query(FORM_SECTION_TABLE, null, SHEET_ID+" = '"+sheetId+"' and "+CAN_DUPLICATE+" != ''" , null, null, null, null);
+		c = mDb.query(FORM_SECTION_TABLE, null, SHEET_ID+" = '"+sheetId+"' and "+CAN_DUPLICATE+" != ''" , null, null, null, null);
 		c.moveToFirst();
 		Button dupButton;
 		do{
@@ -106,12 +117,14 @@ public class ItemList extends Activity implements DBConstants{
 					data = (SectionData) mItemAdapter.getGroup(i - 1);
 					dupId = data.duplicateId + 1;
 					//create a mew section
-					SectionData newSect = new SectionData();
-					newSect.canDuplicate = data.canDuplicate;
-					newSect.duplicateId = dupId;
-					newSect.sheetId = sheetId;
-					newSect.sectionId = sectId;
-					newSect.sectionTitle = data.sectionTitle;
+					SectionData newSect = null;
+					try {
+						newSect = data.cloneMe();
+					} catch (CloneNotSupportedException e) {
+						e.printStackTrace();
+						System.exit(1);
+					}
+					newSect.duplicateId++;
 					mItemAdapter.addGroup(i, newSect);
 					mItemAdapter.notifyDataSetChanged();
 					mList.setAdapter(mItemAdapter);
@@ -125,31 +138,76 @@ public class ItemList extends Activity implements DBConstants{
 
 		}while(c.moveToNext());
 		//close db
-		db.close();
+		mDb.close();
 		// get the list adapter and attach it to mlist.
-		mList.setAdapter(new ListItemAdapter(this, sheetId));
+		mList.setAdapter(mItemAdapter);
 		super.onCreate(savedInstanceState);
 	}
-//	@Override
-//	protected void onDestroy() {
-//		// TODO Auto-generated method stub
-//		super.onDestroy();
-//	}
-//	@Override
-//	protected void onPause() {
-//		// TODO Auto-generated method stub
-//		super.onPause();
-//	}
-//	@Override
-//	protected void onRestart() {
-//		// TODO Auto-generated method stub
-//		super.onRestart();
-//	}
-//	@Override
-//	protected void onResume() {
-//		// TODO Auto-generated method stub
-//		super.onResume();
-//	}
+	@Override
+	protected void onDestroy() {
+		storeInDB();
+		super.onDestroy();
+	}
+	@Override
+	protected void onPause() {
+		storeInDB();
+		super.onPause();
+	}
+	@Override
+	protected void onRestart() {
+		mItemAdapter.loadSavedItems();
+		super.onRestart();
+	}
+	@Override
+	protected void onResume() {
+		//mItemAdapter.loadSavedItems();
+		super.onResume();
+	}
+
+	private void storeInDB(){
+		//open DB
+		try {
+			mDbHelper = new DatabaseHelper(this);
+			mDb = mDbHelper.getWritableDatabase();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		ContentValues values = new ContentValues();
+
+		//get survey ID
+		//String surveyId = prefs.getString(SURVEY_ID, "");
+		int surveyId = mPrefs.getInt(SURVEY_ID, 0);
+		//get saved Items.
+		//Map<String, ItemData> savedItems = mItemAdapter.getSavedItems();
+		//for each saved item that has changed 
+		//for(ItemData item : savedItems.values()){
+		for(ItemData item : mSavedItems.values()){
+		//for(ItemData item : mItemAdapter.mSavedItems.values()){
+		  //TODO sore in Db using insert-or-update command
+			values.clear();
+			values.put(SURVEY_ID, surveyId);
+			values.put(SHEET_ID, item.sheetId);
+			values.put(SECTION_ID, item.sectionId);
+			values.put(DUPLICATE_ID, item.SectionDuplicateId);
+			values.put(ITEM_ID, item.itemId);
+			values.put(TAKIN_LEVEL, item.takin ? "1" : "0");
+			values.put(FIX_1_SELECTION, item.fix1Select);
+			values.put(FIX_2_SELECTION, item.fix2Select);
+			values.put(COMMENT, item.ItemComment);
+			values.put(MEASURE_RESULT, item.measureResult);
+			values.put(IMAGE_LOCATION, item.imageLocation);
+			if(item.hasChanged){
+				mDb.insertWithOnConflict(ITEM_DATA_TABLE, null, values, SQLiteDatabase.CONFLICT_REPLACE);
+				item.hasChanged = false;
+			}
+			else
+				mDb.insertWithOnConflict(ITEM_DATA_TABLE, null, values, SQLiteDatabase.CONFLICT_IGNORE);
+		}
+		//
+		//close DB
+	}
+	
+	
 	
 	
 //	public void onCreate(Bundle bundle){

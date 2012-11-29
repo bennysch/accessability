@@ -124,15 +124,16 @@ public interface DBConstants {
 	public static final String CREATE_DATA = "CREATE TABLE IF NOT EXISTS "+ITEM_DATA_TABLE+
 														   "('"+SHEET_ID+"' INTEGER, '"+
 														   SECTION_ID+"' INTEGER, '"+
+														   DUPLICATE_ID+"' INTEGER, '"+
 														   ITEM_ID+"' INTEGER, '"+
-														   SURVEY_ID+"' VARCHAR, '"+
+														   SURVEY_ID+"' INTEGER, '"+
 														   TAKIN_LEVEL+"' VARCHAR, '"+
 														   FIX_1_SELECTION+"' VARCHAR, '"+
 														   FIX_2_SELECTION+"' VARCHAR, '"+
 														   COMMENT+"' VARCHAR, '"+
 														   MEASURE_RESULT+"' VARCHAR, '"+
 														   IMAGE_LOCATION+"' VARCHAR, "+
-														   "PRIMARY KEY ('"+SURVEY_ID+"','"+SHEET_ID+"','"+SECTION_ID+"','"+ITEM_ID+"'));";
+														   "PRIMARY KEY ('"+SURVEY_ID+"','"+SHEET_ID+"','"+SECTION_ID+"','"+DUPLICATE_ID+"','"+ITEM_ID+"'));";
  
 	public static final String CREATE_OWNER = "CREATE TABLE IF NOT EXISTS " +OWNER_TABLE +
 															"('"+OWNER_ID+"' VARCHAR, '"+
